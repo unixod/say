@@ -1,0 +1,104 @@
+#!/bin/bash
+#
+#   say - simple www.forvo.com client
+#
+#   Feel free to contribute to this project at:
+#       http://github.com/unixod/say
+#
+#   Copyright (c) 2012, Eldar Zakirov <unixod@gmail.com>
+#   All rights reserved.
+#
+#   Redistribution and use in source and binary forms, with or without
+#   modification, are permitted provided that the following conditions are met:
+#
+#    1. Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#    2. Redistributions in binary form must reproduce the above
+#       copyright notice, this list of conditions and the following
+#       disclaimer in the documentation and/or other materials provided
+#       with the distribution.
+#
+#   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+#   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+#   TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+#   PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+#   CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+#   EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#   PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#   OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#   WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#   OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#   ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+#   The views and conclusions contained in the software and documentation are
+#   those of the authors and should not be interpreted as representing official
+#   policies, either expressed or implied, of Eldar Zakirov.
+#
+#
+#   usage:
+#       $ say some word(s)
+#
+#   example:
+#       $ say table
+#       $ say just in time
+
+### CONFIGURATION ###
+LANGUAGE_ID=39
+
+
+
+# Trick for mixing AWK and Shell programs in the same file
+# this line reads AWK-program from marked tail of this file
+PARSER_PRG=$(awk '(/^### AWK PROGRAMM MARKER ###$/ || body){body=1; print $0}' $0)
+
+WORD=$@
+if [[ -n $WORD ]]; then 
+    URL=$(curl -d "id_lang=$LANGUAGE_ID&word_search=$WORD" -L 'http://www.forvo.com/search/' 2> /dev/null | awk "$PARSER_PRG")
+    if [[ -n $URL ]]; then
+        mpg123 -q $URL
+    else
+        echo not found
+    fi
+fi
+exit
+
+
+# parser AWK program
+### AWK PROGRAMM MARKER ###
+/var (_SERVER_HOST|_AUDIO_HTTP_HOST)/{
+    if(match($0, /var[ \t]+(_SERVER_HOST|_AUDIO_HTTP_HOST)[ \t]*=[ \t]*'?([^']+)'?/, tmp)){
+        #sev_hst = "tm";
+        if(tmp[1] == "_SERVER_HOST"){
+            srv_host = tmp[2];
+        } else if(tmp[1] == "_AUDIO_HTTP_HOST") {
+            audio_http_host = tmp[2];
+        }
+    }
+}
+/<a href.+onclick="Play\(/{
+    if(match($0, /onclick="Play\([^,]+,'([^,]+)','([^,]+)'\)/, arr)){
+        mp3Path = arr[1];
+        oggPath = arr[2];
+
+        if (srv_host == audio_http_host){
+            mp3Path = ("http://" srv_host "/player-mp3Handler.php?path=" mp3Path);
+            oggPath = ("http://" srv_host "/player-oggHandler.php?path=" oggPath);
+        } else {
+            mp3Path = ("http://" audio_http_host "/mp3/" base64_decode(mp3Path));
+            oggPath = ("http://" audio_http_host "/ogg/" base64_decode(oggPath));
+        }
+    }
+    exit;
+}
+
+function base64_decode(val){
+	command = ("echo '" val "' | base64 -d");
+	command | getline ret;
+	close(command);
+	return ret;
+}
+
+END{
+    if(mp3Path) print mp3Path;
+#    if(oggPath) print oggPath;
+}
