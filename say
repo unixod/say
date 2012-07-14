@@ -42,29 +42,111 @@
 #       $ say table
 #       $ say just in time
 
+
 ### CONFIGURATION ###
-LANGUAGE_ID=39
+CONFIG_FILE="$HOME/.say.conf"
+DEFAULT_LNG_ID=39
 
 
-
+function getAwkProgram(){
 # Trick for mixing AWK and Shell programs in the same file
-# this line reads AWK-program from marked tail of this file
-PARSER_PRG=$(awk '(/^### AWK PROGRAMM MARKER ###$/ || body){body=1; print $0}' $0)
+# awk-programm body must be located in tail of ths file and
+# maked with preceding '### AWK PROGRAMM MARKER ###'
+# as well as followed # program_name
+#   for example:
+#       ...
+#       shell script body
+#       ...
+#       ### AWK PROGRAMM MARKER ###
+#       # prg1
+#       ...
+#       awk script body
+#       ...
+#       ### AWK PROGRAMM MARKER ###
+#       # prg2
+#       ...
+#       awk script body
+#       ...
+#   usage:
+#       PRG=$(getAwkProgram 'program name')
 
-WORD=$@
-if [[ -n $WORD ]]; then 
-    URL=$(curl -d "id_lang=$LANGUAGE_ID&word_search=$WORD" -L 'http://www.forvo.com/search/' 2> /dev/null | awk "$PARSER_PRG")
-    if [[ -n $URL ]]; then
-        mpg123 -q $URL
+    echo "$(awk '/^### AWK PROGRAMM MARKER ###$/{
+        if(body) exit;
+        if(getline > 0 && ($0 ~ ("^#[ \t]*" prgName)))
+            body = 1;
+    }
+
+    body{
+        print;
+    }' prgName=$1 $0)"
+}
+
+
+function getLanguageID(){
+# resolving language id by language abbr-tion from www.forvo.com
+# 1st param - language abbreviation (en, ru, tt, ...)
+# return    - language id to stdout
+
+    LNG_PRG=$(getAwkProgram 'LanguageID')
+    echo $(curl -L 'http://www.forvo.com/search/' 2> /dev/null | awk -v "lngID=$1" "$LNG_PRG" )
+}
+
+function showHelp(){
+    echo "usage:"
+    echo "  $ say -lng=en       #changing language pronunciation"
+    echo "  $ say some words"
+}
+
+function saveLanguageID(){
+# save language id to $CONFIG_FILE
+# 1st param - language id
+
+    [[ -n $1 ]] &&
+        echo $1 > "$CONFIG_FILE"
+}
+
+function loadLanguageID(){
+# load language id from $CONFIG_FILE
+# return    - language id to stdout
+
+    if [[ -f "$CONFIG_FILE" ]]; then
+        cat "$CONFIG_FILE"
     else
-        echo not found
+        echo $DEFAULT_LNG_ID
     fi
-fi
+}
+
+
+case $1 in
+    -lng=[a-z]* )   # setting pronounce language
+        ID=$(getLanguageID $(echo $1 | sed 's/.*=//'))
+        if [[ -n $ID ]]; then
+            saveLanguageID $ID
+            echo "ok"
+        else
+            echo "failed"
+        fi
+        ;;
+    '')             # showing help
+        echo "$(showHelp)"
+        ;;
+    * )             # pronouncing
+        ID=$(loadLanguageID)
+        PARSER_PRG=$(getAwkProgram 'Parser')
+        WORD=$@
+        URL=$(curl -d "id_lang=$ID&word_search=$WORD" -L 'http://www.forvo.com/search/' 2> /dev/null | awk "$PARSER_PRG")
+        if [[ -n $URL ]]; then
+            mpg123 -q $URL
+        else
+            echo "not found"
+        fi
+        ;;
+esac
 exit
 
 
-# parser AWK program
 ### AWK PROGRAMM MARKER ###
+#Parser
 /var (_SERVER_HOST|_AUDIO_HTTP_HOST)/{
     if(match($0, /var[ \t]+(_SERVER_HOST|_AUDIO_HTTP_HOST)[ \t]*=[ \t]*'?([^']+)'?/, tmp)){
         #sev_hst = "tm";
@@ -101,4 +183,14 @@ function base64_decode(val){
 END{
     if(mp3Path) print mp3Path;
 #    if(oggPath) print oggPath;
+}
+
+### AWK PROGRAMM MARKER ###
+#LanguageID
+# lngID must be defined as command line argument
+/<optgroup label="Alphabetically">/ && lngID{
+    while(getline > 0 && ($0 !~ /<\/optgroup>/)){
+        if(match($0, ("<option value=\"([0-9]+)\"[^(]+\\(" lngID "\\)</option>"), arr))
+            print arr[1];
+    }
 }
