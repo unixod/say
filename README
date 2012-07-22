@@ -6,10 +6,10 @@ simple www.forvo.com client
 
 say - used to listen pronunciations of words from forvo service.
 example of usage:
-    $ say table
-    $ say just in time
+    $ say example
+    $ say hello world
 
-Default language - English, language can be changed by invoking:
+Default language - English, language can be changed (persistently) by invoking:
     $ say -lng=XXX  (where XXX: language abbreviation)
 
 For example, the following call changes the language to Russian, and all subsequent invocations will be use this language:

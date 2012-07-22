@@ -50,12 +50,13 @@ DEFAULT_LNG_ID=39
 
 function getAwkProgram(){
 # Trick for mixing AWK and Shell programs in the same file
-# awk-programm body must be located in tail of ths file and
-# maked with preceding '### AWK PROGRAMM MARKER ###'
+# awk-program body must be located in tail of this file and
+# marked with preceding '### AWK PROGRAMM MARKER ###'
 # as well as followed # program_name
 #   for example:
 #       ...
 #       shell script body
+#       exit        # necessarily!
 #       ...
 #       ### AWK PROGRAMM MARKER ###
 #       # prg1
@@ -70,15 +71,11 @@ function getAwkProgram(){
 #   usage:
 #       PRG=$(getAwkProgram 'program name')
 
-    echo "$(awk '/^### AWK PROGRAMM MARKER ###$/{
+    awk '/^### AWK PROGRAMM MARKER ###$/{
         if(body) exit;
         if(getline > 0 && ($0 ~ ("^#[ \t]*" prgName)))
             body = 1;
-    }
-
-    body{
-        print;
-    }' prgName=$1 $0)"
+    } body' prgName=$1 $0
 }
 
 
