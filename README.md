@@ -29,9 +29,17 @@ For example, the following call changes the language to Russian, and all subsequ
     say -lng=ru
 
 
+## Installation
+
+   1. Clone this repository:
+
+        git clone git://github.com/unixod/say.git
+
+   2. Follow the steps described in the INSTALL file.
+
+
 ## License terms
 **say** is published under the liberal terms of the BSD License. Although the BSD License does not require you to share any modifications you make to the source code, you are very much encouraged and invited to contribute back your modifications to the project, preferably in a Github fork, of course.
-
 
 
 
