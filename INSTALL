@@ -5,7 +5,7 @@ bash, gawk, mpg123
 ### Installing ###
 
 1. Install the all requirements with your prefered package manager, for example:
-    sudo apt-get install gawk mpg123
+    sudo apt-get install gawk mpg123 curl
 2. Copy or create symlink to 'say' in some directory which registered in $PATH.
 3. Enjoy)
 
