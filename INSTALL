@@ -1,6 +1,6 @@
 ### Requirements ###
 
-bash, gawk, mpg123
+bash, gawk, mpg123, curl
 
 ### Installing ###
 
